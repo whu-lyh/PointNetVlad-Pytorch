@@ -10,8 +10,16 @@ import math
 
 
 class NetVLADLoupe(nn.Module):
-    def __init__(self, feature_size, max_samples, cluster_size, output_dim,
-                 gating=True, add_batch_norm=True, is_training=True):
+    def __init__(
+        self,
+        feature_size,
+        max_samples,
+        cluster_size,
+        output_dim,
+        gating=True,
+        add_batch_norm=True,
+        is_training=True,
+    ):
         super(NetVLADLoupe, self).__init__()
         self.feature_size = feature_size
         self.max_samples = max_samples
@@ -21,26 +29,33 @@ class NetVLADLoupe(nn.Module):
         self.add_batch_norm = add_batch_norm
         self.cluster_size = cluster_size
         self.softmax = nn.Softmax(dim=-1)
-        self.cluster_weights = nn.Parameter(torch.randn(
-            feature_size, cluster_size) * 1 / math.sqrt(feature_size))
-        self.cluster_weights2 = nn.Parameter(torch.randn(
-            1, feature_size, cluster_size) * 1 / math.sqrt(feature_size))
+        self.cluster_weights = nn.Parameter(
+            torch.randn(feature_size, cluster_size) * 1 / math.sqrt(feature_size)
+        )
+        self.cluster_weights2 = nn.Parameter(
+            torch.randn(1, feature_size, cluster_size) * 1 / math.sqrt(feature_size)
+        )
         self.hidden1_weights = nn.Parameter(
-            torch.randn(cluster_size * feature_size, output_dim) * 1 / math.sqrt(feature_size))
+            torch.randn(cluster_size * feature_size, output_dim)
+            * 1
+            / math.sqrt(feature_size)
+        )
 
         if add_batch_norm:
             self.cluster_biases = None
             self.bn1 = nn.BatchNorm1d(cluster_size)
         else:
-            self.cluster_biases = nn.Parameter(torch.randn(
-                cluster_size) * 1 / math.sqrt(feature_size))
+            self.cluster_biases = nn.Parameter(
+                torch.randn(cluster_size) * 1 / math.sqrt(feature_size)
+            )
             self.bn1 = None
 
         self.bn2 = nn.BatchNorm1d(output_dim)
 
         if gating:
             self.context_gating = GatingContext(
-                output_dim, add_batch_norm=add_batch_norm)
+                output_dim, add_batch_norm=add_batch_norm
+            )
 
     def forward(self, x):
         x = x.transpose(1, 3).contiguous()
@@ -50,8 +65,7 @@ class NetVLADLoupe(nn.Module):
             # activation = activation.transpose(1,2).contiguous()
             activation = activation.view(-1, self.cluster_size)
             activation = self.bn1(activation)
-            activation = activation.view(-1,
-                                         self.max_samples, self.cluster_size)
+            activation = activation.view(-1, self.max_samples, self.cluster_size)
             # activation = activation.transpose(1,2).contiguous()
         else:
             activation = activation + self.cluster_biases
@@ -68,7 +82,7 @@ class NetVLADLoupe(nn.Module):
         vlad = vlad - a
 
         vlad = F.normalize(vlad, dim=1, p=2)
-        vlad = vlad.view((-1, self.cluster_size * self.feature_size))
+        vlad = vlad.reshape((-1, self.cluster_size * self.feature_size))
         vlad = F.normalize(vlad, dim=1, p=2)
 
         vlad = torch.matmul(vlad, self.hidden1_weights)
@@ -86,16 +100,14 @@ class GatingContext(nn.Module):
         super(GatingContext, self).__init__()
         self.dim = dim
         self.add_batch_norm = add_batch_norm
-        self.gating_weights = nn.Parameter(
-            torch.randn(dim, dim) * 1 / math.sqrt(dim))
+        self.gating_weights = nn.Parameter(torch.randn(dim, dim) * 1 / math.sqrt(dim))
         self.sigmoid = nn.Sigmoid()
 
         if add_batch_norm:
             self.gating_biases = None
             self.bn1 = nn.BatchNorm1d(dim)
         else:
-            self.gating_biases = nn.Parameter(
-                torch.randn(dim) * 1 / math.sqrt(dim))
+            self.gating_biases = nn.Parameter(torch.randn(dim) * 1 / math.sqrt(dim))
             self.bn1 = None
 
     def forward(self, x):
@@ -130,12 +142,12 @@ class STN3d(nn.Module):
         self.num_points = num_points
         self.use_bn = use_bn
         self.conv1 = torch.nn.Conv2d(self.channels, 64, (1, self.kernel_size))
-        self.conv2 = torch.nn.Conv2d(64, 128, (1,1))
-        self.conv3 = torch.nn.Conv2d(128, 1024, (1,1))
+        self.conv2 = torch.nn.Conv2d(64, 128, (1, 1))
+        self.conv3 = torch.nn.Conv2d(128, 1024, (1, 1))
         self.mp1 = torch.nn.MaxPool2d((num_points, 1), 1)
         self.fc1 = nn.Linear(1024, 512)
         self.fc2 = nn.Linear(512, 256)
-        self.fc3 = nn.Linear(256, k*k)
+        self.fc3 = nn.Linear(256, k * k)
         self.fc3.weight.data.zero_()
         self.fc3.bias.data.zero_()
         self.relu = nn.ReLU()
@@ -168,8 +180,11 @@ class STN3d(nn.Module):
             x = F.relu(self.fc2(x))
         x = self.fc3(x)
 
-        iden = Variable(torch.from_numpy(np.eye(self.k).astype(np.float32))).view(
-            1, self.k*self.k).repeat(batchsize, 1)
+        iden = (
+            Variable(torch.from_numpy(np.eye(self.k).astype(np.float32)))
+            .view(1, self.k * self.k)
+            .repeat(batchsize, 1)
+        )
         if x.is_cuda:
             iden = iden.cuda()
         x = x + iden
@@ -178,7 +193,9 @@ class STN3d(nn.Module):
 
 
 class PointNetfeat(nn.Module):
-    def __init__(self, num_points=2500, global_feat=True, feature_transform=False, max_pool=True):
+    def __init__(
+        self, num_points=2500, global_feat=True, feature_transform=False, max_pool=True
+    ):
         super(PointNetfeat, self).__init__()
         self.stn = STN3d(num_points=num_points, k=3, use_bn=False)
         self.feature_trans = STN3d(num_points=num_points, k=64, use_bn=False)
@@ -203,9 +220,9 @@ class PointNetfeat(nn.Module):
         trans = self.stn(x)
         x = torch.matmul(torch.squeeze(x), trans)
         x = x.view(batchsize, 1, -1, 3)
-        #x = x.transpose(2,1)
-        #x = torch.bmm(x, trans)
-        #x = x.transpose(2,1)
+        # x = x.transpose(2,1)
+        # x = torch.bmm(x, trans)
+        # x = x.transpose(2,1)
         x = F.relu(self.bn1(self.conv1(x)))
         x = F.relu(self.bn2(self.conv2(x)))
         pointfeat = x
@@ -233,13 +250,30 @@ class PointNetfeat(nn.Module):
 
 
 class PointNetVlad(nn.Module):
-    def __init__(self, num_points=2500, global_feat=True, feature_transform=False, max_pool=True, output_dim=1024):
+    def __init__(
+        self,
+        num_points=2500,
+        global_feat=True,
+        feature_transform=False,
+        max_pool=True,
+        output_dim=1024,
+    ):
         super(PointNetVlad, self).__init__()
-        self.point_net = PointNetfeat(num_points=num_points, global_feat=global_feat,
-                                      feature_transform=feature_transform, max_pool=max_pool)
-        self.net_vlad = NetVLADLoupe(feature_size=1024, max_samples=num_points, cluster_size=64,
-                                     output_dim=output_dim, gating=True, add_batch_norm=True,
-                                     is_training=True)
+        self.point_net = PointNetfeat(
+            num_points=num_points,
+            global_feat=global_feat,
+            feature_transform=feature_transform,
+            max_pool=max_pool,
+        )
+        self.net_vlad = NetVLADLoupe(
+            feature_size=1024,
+            max_samples=num_points,
+            cluster_size=64,
+            output_dim=output_dim,
+            gating=True,
+            add_batch_norm=True,
+            is_training=True,
+        )
 
     def forward(self, x):
         x = self.point_net(x)
@@ -247,13 +281,18 @@ class PointNetVlad(nn.Module):
         return x
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     num_points = 4096
     sim_data = Variable(torch.rand(44, 1, num_points, 3))
     sim_data = sim_data.cuda()
 
-    pnv = PointNetVlad.PointNetVlad(global_feat=True, feature_transform=True, max_pool=False,
-                                    output_dim=256, num_points=num_points).cuda()
+    pnv = PointNetVlad.PointNetVlad(
+        global_feat=True,
+        feature_transform=True,
+        max_pool=False,
+        output_dim=256,
+        num_points=num_points,
+    ).cuda()
     pnv.train()
     out3 = pnv(sim_data)
-    print('pnv', out3.size())
+    print("pnv", out3.size())

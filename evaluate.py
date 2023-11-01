@@ -1,28 +1,26 @@
 import argparse
-import math
-import numpy as np
-import socket
 import importlib
+import math
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+import socket
 import sys
+
+import numpy as np
 import torch
 import torch.nn as nn
+from sklearn.neighbors import KDTree, NearestNeighbors
 from torch.autograd import Variable
 from torch.backends import cudnn
-
-from sklearn.neighbors import NearestNeighbors
-from sklearn.neighbors import KDTree
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(BASE_DIR)
 
-from loading_pointclouds import *
-import models.PointNetVlad as PNV
-from tensorboardX import SummaryWriter
-import loss.pointnetvlad_loss
+from torch.utils.tensorboard import SummaryWriter
 
 import config as cfg
+import loss.pointnetvlad_loss
+import models.PointNetVlad as PNV
+from loading_pointclouds import *
 
 cudnn.enabled = True
 
@@ -30,14 +28,19 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def evaluate():
-    model = PNV.PointNetVlad(global_feat=True, feature_transform=True, max_pool=False,
-                                      output_dim=cfg.FEATURE_OUTPUT_DIM, num_points=cfg.NUM_POINTS)
+    model = PNV.PointNetVlad(
+        global_feat=True,
+        feature_transform=True,
+        max_pool=False,
+        output_dim=cfg.FEATURE_OUTPUT_DIM,
+        num_points=cfg.NUM_POINTS,
+    )
     model = model.to(device)
 
     resume_filename = cfg.LOG_DIR + "checkpoint.pth.tar"
     print("Resuming From ", resume_filename)
     checkpoint = torch.load(resume_filename)
-    saved_state_dict = checkpoint['state_dict']
+    saved_state_dict = checkpoint["state_dict"]
     model.load_state_dict(saved_state_dict)
 
     model = nn.DataParallel(model)
@@ -68,10 +71,11 @@ def evaluate_model(model):
 
     for m in range(len(QUERY_SETS)):
         for n in range(len(QUERY_SETS)):
-            if (m == n):
+            if m == n:
                 continue
             pair_recall, pair_similarity, pair_opr = get_recall(
-                m, n, DATABASE_VECTORS, QUERY_VECTORS, QUERY_SETS)
+                m, n, DATABASE_VECTORS, QUERY_VECTORS, QUERY_SETS
+            )
             recall += np.array(pair_recall)
             count += 1
             one_percent_recall.append(pair_opr)
@@ -103,17 +107,18 @@ def evaluate_model(model):
 
 
 def get_latent_vectors(model, dict_to_process):
-
     model.eval()
     is_training = False
     train_file_idxs = np.arange(0, len(dict_to_process.keys()))
 
-    batch_num = cfg.EVAL_BATCH_SIZE * \
-        (1 + cfg.EVAL_POSITIVES_PER_QUERY + cfg.EVAL_NEGATIVES_PER_QUERY)
+    batch_num = cfg.EVAL_BATCH_SIZE * (
+        1 + cfg.EVAL_POSITIVES_PER_QUERY + cfg.EVAL_NEGATIVES_PER_QUERY
+    )
     q_output = []
-    for q_index in range(len(train_file_idxs)//batch_num):
-        file_indices = train_file_idxs[q_index *
-                                       batch_num:(q_index+1)*(batch_num)]
+    for q_index in range(len(train_file_idxs) // batch_num):
+        file_indices = train_file_idxs[
+            q_index * batch_num : (q_index + 1) * (batch_num)
+        ]
         file_names = []
         for index in file_indices:
             file_names.append(dict_to_process[index]["query"])
@@ -128,17 +133,17 @@ def get_latent_vectors(model, dict_to_process):
         out = out.detach().cpu().numpy()
         out = np.squeeze(out)
 
-        #out = np.vstack((o1, o2, o3, o4))
+        # out = np.vstack((o1, o2, o3, o4))
         q_output.append(out)
 
     q_output = np.array(q_output)
-    if(len(q_output) != 0):
+    if len(q_output) != 0:
         q_output = q_output.reshape(-1, q_output.shape[-1])
 
     # handle edge case
     index_edge = len(train_file_idxs) // batch_num * batch_num
     if index_edge < len(dict_to_process.keys()):
-        file_indices = train_file_idxs[index_edge:len(dict_to_process.keys())]
+        file_indices = train_file_idxs[index_edge : len(dict_to_process.keys())]
         file_names = []
         for index in file_indices:
             file_names.append(dict_to_process[index]["query"])
@@ -152,7 +157,7 @@ def get_latent_vectors(model, dict_to_process):
 
         output = o1.detach().cpu().numpy()
         output = np.squeeze(output)
-        if (q_output.shape[0] != 0):
+        if q_output.shape[0] != 0:
             q_output = np.vstack((q_output, output))
         else:
             q_output = output
@@ -163,7 +168,6 @@ def get_latent_vectors(model, dict_to_process):
 
 
 def get_recall(m, n, DATABASE_VECTORS, QUERY_VECTORS, QUERY_SETS):
-
     database_output = DATABASE_VECTORS[m]
     queries_output = QUERY_VECTORS[n]
 
@@ -175,30 +179,35 @@ def get_recall(m, n, DATABASE_VECTORS, QUERY_VECTORS, QUERY_SETS):
 
     top1_similarity_score = []
     one_percent_retrieved = 0
-    threshold = max(int(round(len(database_output)/100.0)), 1)
+    threshold = max(int(round(len(database_output) / 100.0)), 1)
 
     num_evaluated = 0
     for i in range(len(queries_output)):
         true_neighbors = QUERY_SETS[n][i][m]
-        if(len(true_neighbors) == 0):
+        if len(true_neighbors) == 0:
             continue
         num_evaluated += 1
         distances, indices = database_nbrs.query(
-            np.array([queries_output[i]]),k=num_neighbors)
+            np.array([queries_output[i]]), k=num_neighbors
+        )
         for j in range(len(indices[0])):
             if indices[0][j] in true_neighbors:
-                if(j == 0):
+                if j == 0:
                     similarity = np.dot(
-                        queries_output[i], database_output[indices[0][j]])
+                        queries_output[i], database_output[indices[0][j]]
+                    )
                     top1_similarity_score.append(similarity)
                 recall[j] += 1
                 break
 
-        if len(list(set(indices[0][0:threshold]).intersection(set(true_neighbors)))) > 0:
+        if (
+            len(list(set(indices[0][0:threshold]).intersection(set(true_neighbors))))
+            > 0
+        ):
             one_percent_retrieved += 1
 
-    one_percent_recall = (one_percent_retrieved/float(num_evaluated))*100
-    recall = (np.cumsum(recall)/float(num_evaluated))*100
+    one_percent_recall = (one_percent_retrieved / float(num_evaluated)) * 100
+    recall = (np.cumsum(recall) / float(num_evaluated)) * 100
     # print(recall)
     # print(np.mean(top1_similarity_score))
     # print(one_percent_recall)
@@ -208,25 +217,47 @@ def get_recall(m, n, DATABASE_VECTORS, QUERY_VECTORS, QUERY_SETS):
 if __name__ == "__main__":
     # params
     parser = argparse.ArgumentParser()
-    parser.add_argument('--positives_per_query', type=int, default=4,
-                        help='Number of potential positives in each training tuple [default: 2]')
-    parser.add_argument('--negatives_per_query', type=int, default=12,
-                        help='Number of definite negatives in each training tuple [default: 20]')
-    parser.add_argument('--eval_batch_size', type=int, default=12,
-                        help='Batch Size during training [default: 1]')
-    parser.add_argument('--dimension', type=int, default=256)
-    parser.add_argument('--decay_step', type=int, default=200000,
-                        help='Decay step for lr decay [default: 200000]')
-    parser.add_argument('--decay_rate', type=float, default=0.7,
-                        help='Decay rate for lr decay [default: 0.8]')
-    parser.add_argument('--results_dir', default='results/',
-                        help='results dir [default: results]')
-    parser.add_argument('--dataset_folder', default='../../dataset/',
-                        help='PointNetVlad Dataset Folder')
+    parser.add_argument(
+        "--positives_per_query",
+        type=int,
+        default=4,
+        help="Number of potential positives in each training tuple [default: 2]",
+    )
+    parser.add_argument(
+        "--negatives_per_query",
+        type=int,
+        default=12,
+        help="Number of definite negatives in each training tuple [default: 20]",
+    )
+    parser.add_argument(
+        "--eval_batch_size",
+        type=int,
+        default=12,
+        help="Batch Size during training [default: 1]",
+    )
+    parser.add_argument("--dimension", type=int, default=256)
+    parser.add_argument(
+        "--decay_step",
+        type=int,
+        default=200000,
+        help="Decay step for lr decay [default: 200000]",
+    )
+    parser.add_argument(
+        "--decay_rate",
+        type=float,
+        default=0.7,
+        help="Decay rate for lr decay [default: 0.8]",
+    )
+    parser.add_argument(
+        "--results_dir", default="results/", help="results dir [default: results]"
+    )
+    parser.add_argument(
+        "--dataset_folder", default="../../dataset/", help="PointNetVlad Dataset Folder"
+    )
     FLAGS = parser.parse_args()
 
-    #BATCH_SIZE = FLAGS.batch_size
-    #cfg.EVAL_BATCH_SIZE = FLAGS.eval_batch_size
+    # BATCH_SIZE = FLAGS.batch_size
+    # cfg.EVAL_BATCH_SIZE = FLAGS.eval_batch_size
     cfg.NUM_POINTS = 4096
     cfg.FEATURE_OUTPUT_DIM = 256
     cfg.EVAL_POSITIVES_PER_QUERY = FLAGS.positives_per_query
@@ -236,11 +267,11 @@ if __name__ == "__main__":
 
     cfg.RESULTS_FOLDER = FLAGS.results_dir
 
-    cfg.EVAL_DATABASE_FILE = 'generating_queries/oxford_evaluation_database.pickle'
-    cfg.EVAL_QUERY_FILE = 'generating_queries/oxford_evaluation_query.pickle'
+    cfg.EVAL_DATABASE_FILE = "generating_queries/oxford_evaluation_database.pickle"
+    cfg.EVAL_QUERY_FILE = "generating_queries/oxford_evaluation_query.pickle"
 
-    cfg.LOG_DIR = 'log/'
-    cfg.OUTPUT_FILE = cfg.RESULTS_FOLDER + 'results.txt'
+    cfg.LOG_DIR = "log/"
+    cfg.OUTPUT_FILE = cfg.RESULTS_FOLDER + "results.txt"
     cfg.MODEL_FILENAME = "model.ckpt"
 
     cfg.DATASET_FOLDER = FLAGS.dataset_folder

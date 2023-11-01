@@ -12,6 +12,12 @@ The main differences are:
 This implementation achieved an average top 1% recall on oxford baseline of 84.81%
 
 ### Pre-Requisites
+
+```
+apt-get update
+pip install pandas
+```
+
 * PyTorch 0.4.0
 * tensorboardX
 
@@ -28,6 +34,9 @@ python generate_training_tuples_refine.py
 # For network evaluation
 python generate_test_sets.py
 ```
+
+### Before train
++ remove the dummy code `os.environ["CUDA_VISIBLE_DEVICES"] = "3"`, which may crash the procedure.
 
 ### Train
 ```

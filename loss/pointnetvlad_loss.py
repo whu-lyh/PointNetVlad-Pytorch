@@ -12,7 +12,9 @@ def best_pos_distance(query, pos_vecs):
     return min_pos, max_pos
 
 
-def triplet_loss(q_vec, pos_vecs, neg_vecs, margin, use_min=False, lazy=False, ignore_zero_loss=False):
+def triplet_loss(
+    q_vec, pos_vecs, neg_vecs, margin, use_min=False, lazy=False, ignore_zero_loss=False
+):
     min_pos, max_pos = best_pos_distance(q_vec, pos_vecs)
 
     # PointNetVLAD official code use min_pos, but i think max_pos should be used
@@ -42,11 +44,31 @@ def triplet_loss(q_vec, pos_vecs, neg_vecs, margin, use_min=False, lazy=False, i
     return triplet_loss
 
 
-def triplet_loss_wrapper(q_vec, pos_vecs, neg_vecs, other_neg, m1, m2, use_min=False, lazy=False, ignore_zero_loss=False):
+def triplet_loss_wrapper(
+    q_vec,
+    pos_vecs,
+    neg_vecs,
+    other_neg,
+    m1,
+    m2,
+    use_min=False,
+    lazy=False,
+    ignore_zero_loss=False,
+):
     return triplet_loss(q_vec, pos_vecs, neg_vecs, m1, use_min, lazy, ignore_zero_loss)
 
 
-def quadruplet_loss(q_vec, pos_vecs, neg_vecs, other_neg, m1, m2, use_min=False, lazy=False, ignore_zero_loss=False):
+def quadruplet_loss(
+    q_vec,
+    pos_vecs,
+    neg_vecs,
+    other_neg,
+    m1,
+    m2,
+    use_min=False,
+    lazy=False,
+    ignore_zero_loss=False,
+):
     min_pos, max_pos = best_pos_distance(q_vec, pos_vecs)
 
     # PointNetVLAD official code use min_pos, but i think max_pos should be used
