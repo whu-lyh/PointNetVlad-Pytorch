@@ -7,7 +7,7 @@ OUTPUT_FILE = "results/results.txt"
 LOG_DIR = "log/"
 MODEL_FILENAME = "model.ckpt"
 
-DATASET_FOLDER = "/lyh/benchmark_datasets/"
+DATASET_FOLDER = "/lyh/benchmark_datasets"
 
 # TRAIN
 BATCH_NUM_QUERIES = 2
@@ -43,8 +43,8 @@ EVAL_BATCH_SIZE = 2
 EVAL_POSITIVES_PER_QUERY = 4
 EVAL_NEGATIVES_PER_QUERY = 12
 
-EVAL_DATABASE_FILE = "generating_queries/oxford_evaluation_database.pickle"
-EVAL_QUERY_FILE = "generating_queries/oxford_evaluation_query.pickle"
+EVAL_DATABASE_FILE = DATASET_FOLDER + "/oxford_evaluation_database.pickle"
+EVAL_QUERY_FILE = DATASET_FOLDER + "/oxford_evaluation_query.pickle"
 
 
 def cfg_str():

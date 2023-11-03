@@ -238,7 +238,12 @@ def train():
     LOG_FOUT.write("\n")
     LOG_FOUT.flush()
 
-    for epoch in tqdm(range(starting_epoch, cfg.MAX_EPOCH), leave=True):
+    for epoch in tqdm(
+        range(starting_epoch, cfg.MAX_EPOCH),
+        position=0,
+        leave=False,
+        desc="Epoch Iter".rjust(15),
+    ):
         train_one_epoch(model, optimizer, train_writer, loss_function, epoch)
 
         log_string("EVALUATING...")
@@ -263,7 +268,12 @@ def train_one_epoch(model, optimizer, train_writer, loss_function, epoch):
     train_file_idxs = np.arange(0, len(TRAINING_QUERIES.keys()))
     np.random.shuffle(train_file_idxs)
 
-    for i in range(len(train_file_idxs) // cfg.BATCH_NUM_QUERIES):
+    for i in tqdm(
+        range(len(train_file_idxs) // cfg.BATCH_NUM_QUERIES),
+        position=1,
+        leave=False,
+        desc="Iter".rjust(15),
+    ):
         # for i in range (5):
         batch_keys = train_file_idxs[
             i * cfg.BATCH_NUM_QUERIES : (i + 1) * cfg.BATCH_NUM_QUERIES
@@ -522,7 +532,7 @@ def get_latent_vectors(model, dict_to_process):
             q_output = output
 
     model.train()
-    print(q_output.shape)
+    # print(q_output.shape)
     return q_output
 
 

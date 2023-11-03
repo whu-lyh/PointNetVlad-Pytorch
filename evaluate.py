@@ -82,7 +82,6 @@ def evaluate_model(model):
             for x in pair_similarity:
                 similarity.append(x)
 
-    print()
     ave_recall = recall / count
     # print(ave_recall)
 
@@ -267,8 +266,8 @@ if __name__ == "__main__":
 
     cfg.RESULTS_FOLDER = FLAGS.results_dir
 
-    cfg.EVAL_DATABASE_FILE = "generating_queries/oxford_evaluation_database.pickle"
-    cfg.EVAL_QUERY_FILE = "generating_queries/oxford_evaluation_query.pickle"
+    cfg.EVAL_DATABASE_FILE = "oxford_evaluation_database.pickle"
+    cfg.EVAL_QUERY_FILE = "oxford_evaluation_query.pickle"
 
     cfg.LOG_DIR = "log/"
     cfg.OUTPUT_FILE = cfg.RESULTS_FOLDER + "results.txt"
