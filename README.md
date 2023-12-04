@@ -18,7 +18,7 @@ apt-get update
 pip install pandas
 ```
 
-* PyTorch 0.4.0
+* PyTorch 0.4.0 (but infact no Dataloader is inherited, instead of manully implemented)
 * tensorboardX
 
 ### Generate pickle files

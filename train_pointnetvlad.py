@@ -8,16 +8,21 @@ import sys
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from sklearn.neighbors import KDTree, NearestNeighbors
 from torch.autograd import Variable
 from torch.backends import cudnn
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
+
 import config as cfg
 import evaluate
 import loss.pointnetvlad_loss as PNV_loss
 import models.PointNetVlad as PNV
+import models.PointTransformer as ptformer
 from loading_pointclouds import *
+
+os.environ["CUDA_VISIABLE_DEVICES"] = "0"
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(BASE_DIR)
@@ -45,12 +50,12 @@ parser.add_argument(
     help="Number of definite negatives in each training tuple [default: 18]",
 )
 parser.add_argument(
-    "--max_epoch", type=int, default=20, help="Epoch to run [default: 20]"
+    "--max_epoch", type=int, default=30, help="Epoch to run [default: 20]"
 )
 parser.add_argument(
     "--batch_num_queries",
     type=int,
-    default=3,
+    default=2,
     help="Batch Size during training [default: 2]",
 )
 parser.add_argument(
@@ -187,6 +192,29 @@ def get_learning_rate(epoch):
     return learning_rate
 
 
+class PointTransformerNet(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        # PointTransformer
+        self.pc_encoder = ptformer.PointTransformer()
+        pc_width = 384
+        embed_dim = 256
+        # project the pc feature to fix dimension
+        self.pc_proj = nn.Linear(pc_width, embed_dim)
+
+    def forward(self, x):
+        coords = x[..., :3].clone()
+        B, M, N, C = coords.size()
+        coords = coords.view(-1, N, C)
+        # feed raw xyz pc into pc encoder
+        pc_embeds = self.pc_encoder(coords)
+        # normalize the image global feature
+        # print("pc_embeds.size(): ", pc_embeds.size())
+        pc_global_feat = F.normalize(self.pc_proj(pc_embeds), dim=-1)
+        pc_global_feat = pc_global_feat.view(B, M, -1)
+        return pc_global_feat
+
+
 def train():
     global HARD_NEGATIVES, TOTAL_ITERATIONS
     bn_decay = get_bn_decay(0)
@@ -200,13 +228,14 @@ def train():
 
     train_writer = SummaryWriter(os.path.join(cfg.LOG_DIR, "train"))
 
-    model = PNV.PointNetVlad(
-        global_feat=True,
-        feature_transform=True,
-        max_pool=False,
-        output_dim=cfg.FEATURE_OUTPUT_DIM,
-        num_points=cfg.NUM_POINTS,
-    )
+    # model = PNV.PointNetVlad(
+    #     global_feat=True,
+    #     feature_transform=True,
+    #     max_pool=False,
+    #     output_dim=cfg.FEATURE_OUTPUT_DIM,
+    #     num_points=cfg.NUM_POINTS,
+    # )
+    model = PointTransformerNet()
     model = model.to(device)
 
     parameters = filter(lambda p: p.requires_grad, model.parameters())
